@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="manifest" href="manifest.json">
+    <title>VULCAN MOBILE</title>
+    <style>
+        :root {
+            --neon: #00f2ea;
+            --bg: #0b0c10;
+            --panel: #1f2833;
+            --roblox-blue: #007BFF;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: white; 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+
+        /* Screen Transitions */
+        .screen { display: none; padding: 20px; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
+        .active { display: flex; }
+
+        /* Roblox-Style UI Elements */
+        h1 { font-size: 32px; letter-spacing: 3px; color: var(--neon); text-shadow: 0 0 10px var(--neon); font-weight: 900; }
+        
+        .btn { 
+            background: linear-gradient(135deg, #00f2ea, #7a00ff); 
+            border: none; 
+            padding: 15px 30px; 
+            border-radius: 8px; 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer; 
+            width: 85%; 
+            margin: 10px 0;
+            text-transform: uppercase;
+            box-shadow: 0 4px #0056b3;
+        }
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px #0056b3; }
+
+        input { 
+            background: #000; 
+            border: 2px solid #333; 
+            color: var(--neon); 
+            padding: 15px; 
+            border-radius: 12px; 
+            width: 80%; 
+            margin: 10px 0; 
+            text-align: center; 
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Profile Section */
+        #profile-pic { 
+            width: 120px; 
+            height: 120px; 
+            border-radius: 50%; 
+            border: 3px solid var(--neon); 
+            margin-bottom: 15px; 
+            object-fit: cover; 
+            box-shadow: 0 0 20px rgba(0, 242, 234, 0.3);
+        }
+        
+        .logout-link { color: #ff4444; margin-top: 25px; cursor: pointer; font-weight: bold; text-decoration: underline; }
+
+        /* Vulcan Dashboard Mockup (Integration Point) */
+        .vulcan-container { background: var(--panel); border-radius: 15px; width: 90%; padding: 20px; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="screen active">
+        <h1>VULCAN MOBILE</h1>
+        <p style="color: #666; margin-bottom: 30px;">ENCRYPTED TERMINAL ACCESS</p>
+        <button class="btn" id="google-login-btn">LOG IN WITH GOOGLE</button>
+    </div>
+
+    <div id="verify-screen" class="screen">
+        <h1>VERIFY</h1>
+        <p>ENTER 4-DIGIT CODE SENT TO YOUR GMAIL</p>
+        <input type="text" id="verify-code" placeholder="0 0 0 0" maxlength="4">
+        <button class="btn" onclick="checkCode()">VERIFY CODE</button>
+        <div class="logout-link" onclick="location.reload()">BACK</div>
+    </div>
+
+    <div id="profile-screen" class="screen">
+        <h1>USER PROFILE</h1>
+        <img id="profile-pic" src="https://via.placeholder.com/120" alt="Profile">
+        <input type="file" id="pic-upload" style="display:none" onchange="updatePic(event)">
+        <button class="btn" style="background: #333;" onclick="document.getElementById('pic-upload').click()">EDIT PHOTO</button>
+        <input type="text" id="username" placeholder="SET USERNAME">
+        <button class="btn" onclick="nextScreen('vulcan-screen')">CONFIRM & ENTER</button>
+        <div class="logout-link" id="logout-btn">LOGOUT SESSION</div>
+    </div>
+
+    <div id="vulcan-screen" class="screen">
+        <h1 style="font-size: 20px;">VULCAN TERMINAL</h1>
+        <div class="vulcan-container">
+            <p style="color: var(--neon); font-family: monospace;">> STATUS: ONLINE</p>
+            <p style="color: var(--neon); font-family: monospace;">> USER: <span id="display-user">AGENT</span></p>
+            <hr style="border: 0; border-top: 1px solid #444;">
+            <p style="font-size: 14px; color: #aaa;">Your Vulcan email tools would appear here.</p>
+        </div>
+        <button class="btn" style="margin-top: 20px;" onclick="nextScreen('profile-screen')">EDIT PROFILE</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // CONFIG: Replace with your actual Firebase project details
+        const firebaseConfig = {
+          apiKey: "YOUR_API_KEY",
+          authDomain: "YOUR_PROJECT.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT.appspot.com",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // 1. LOGIN LOGIC
+        document.getElementById('google-login-btn').onclick = async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+
+                // Sync data to UI
+                window.userEmail = user.email;
+                document.getElementById('username').value = user.displayName;
+                document.getElementById('profile-pic').src = user.photoURL;
+                document.getElementById('display-user').innerText = user.displayName;
+
+                // Call Python Backend to send code
+                // Replace YOUR_NGROK_URL with your actual ngrok or public IP address
+                const response = await fetch("https://YOUR_NGROK_URL.ngrok-free.app/send-code", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: user.email })
+                });
+
+                if (response.ok) {
+                    nextScreen('verify-screen');
+                } else {
+                    alert("Backend Error: Could not send verification code.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Google Login Failed.");
+            }
+        };
+
+        // 2. VERIFY LOGIC
+        window.checkCode = async () => {
+            const code = document.getElementById('verify-code').value;
+            const response = await fetch("https://YOUR_NGROK_URL.ngrok-free.app/verify-code", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: window.userEmail, code: code })
+            });
+
+            const result = await response.json();
+            if (result.status === "success") {
+                nextScreen('profile-screen');
+            } else {
+                alert("INVALID CODE - PLEASE CHECK YOUR GMAIL");
+            }
+        };
+
+        // 3. LOGOUT LOGIC
+        document.getElementById('logout-btn').onclick = () => {
+            signOut(auth).then(() => {
+                location.reload();
+            });
+        };
+
+        // UI HELPERS
+        window.nextScreen = (id) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        };
+
+        window.updatePic = (event) => {
+            const reader = new FileReader();
+            reader.onload = function() {
+                document.getElementById('profile-pic').src = reader.result;
+            }
+            reader.readAsDataURL(event.target.files[0]);
+        };
+    </script>
+</body>
+</html>
